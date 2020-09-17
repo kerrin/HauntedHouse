@@ -13,26 +13,27 @@ public class Room : MonoBehaviour
     [SerializeField]
     private GameObject _ground = null;
     [SerializeField]
-    private Material _material = null;
+    private RoomType _roomType;
+    [SerializeField]
+    // Every other room is displayed reversed, due to switchback on changing rooms
+    private bool _reversed = false;
+    [SerializeField]
+    // If there are parts of the floor missing, we render the floor differently
+    private bool _missingFloor = false;
     [SerializeField]
     private float _chaperoneAngleOffset = 90f;
     private HmdQuad_t[] _chaperoneQuads = null;
-    //private GameObject _floor = null;
-    //private LineRenderer _lineRenderer;
+    private RoomRange _roomRange = null;
+    List<Vector3> _chaparonePoints = new List<Vector3>();
     // Start is called before the first frame update
     void Start()
     {
-        Color color = Color.red;
-        /*
-        _lineRenderer = new LineRenderer();
-        _lineRenderer = transform.gameObject.AddComponent<LineRenderer>();
-        _lineRenderer.startColor = color;
-        _lineRenderer.endColor = color;
-        _lineRenderer.startWidth = 0.2f;
-        _lineRenderer.endWidth = 0.2f;
-        _lineRenderer.material = _material;
-        */
-        CreateRoom();
+        if(!CreateRoom())
+        {
+            Debug.LogError("Cannot initialise room");
+            return;
+        }
+        PopulateRoom();
     }
 
     // Update is called once per frame
@@ -41,7 +42,7 @@ public class Room : MonoBehaviour
         
     }
 
-    private Vector3 GetPoint(int index, HmdQuad_t quad)
+    private Vector3 GetPoint(HmdQuad_t quad)
     {
         Vector3 temp = transform.localScale;
         temp.x = quad.vCorners0.v2;
@@ -50,7 +51,6 @@ public class Room : MonoBehaviour
         Quaternion q = Quaternion.AngleAxis(_chaperoneAngleOffset, new Vector3(0, 1, 0));
 
         temp = q * temp;
-        //_lineRenderer.SetPosition(index, temp);
 
         return temp;
     }
@@ -64,39 +64,113 @@ public class Room : MonoBehaviour
             Debug.LogError("Failed to get Calibrated Chaperone bounds!  Make sure you have tracking first, and that your space is calibrated.");
             return false;
         }
-        List<Vector3> points = new List<Vector3>();
-        //_lineRenderer.positionCount = _chaperoneQuads.Length + 1;
-        for (int i = 0; i < _chaperoneQuads.Length; i++)
-        {
-            Vector3 point = GetPoint(i, _chaperoneQuads[i]);
-            points.Add(point);
-        }
+        
+        
         if (_chaperoneQuads.Length > 0)
         {
-            Vector3 point = GetPoint(_chaperoneQuads.Length, _chaperoneQuads[0]);
-            MeshFilter groundMeshFilter = _ground.AddComponent<MeshFilter>();
-            groundMeshFilter.mesh = CreateMeshFromVectors(points);
-            MeshCollider collider = _ground.GetComponent<MeshCollider>();
-            collider.sharedMesh = groundMeshFilter.mesh;
+            Vector3 point = GetPoint(_chaperoneQuads[0]);
+            _roomRange = new RoomRange(point.x, point.z);
+            _chaparonePoints.Add(point);
+            for (int i = 1; i < _chaperoneQuads.Length; i++)
+            {
+                point = GetPoint(_chaperoneQuads[i]);
+                _chaparonePoints.Add(point);
+                SetRanges(point.x, ref _roomRange.minX, ref _roomRange.maxX, point.z, ref _roomRange.minZ, ref _roomRange.maxZ);
+            }
+
+            PopulateGround();
+            CreateWalls();
+            FillOutsideChaparone();
         }
         else
         {
             Debug.LogError("No Bounding points");
+            return false;
         }
         return success;
     }
 
-    private Mesh CreateMeshFromVectors(List<Vector3> points)
+    // Create the ground
+    private void PopulateGround()
+    {
+        MeshFilter groundMeshFilter = _ground.AddComponent<MeshFilter>();
+        if (_missingFloor)
+        {
+            // TODO: Change to only render floor that exists
+            groundMeshFilter.mesh = CreateMeshFromVectors(_chaparonePoints, _roomRange);
+            MeshCollider collider = _ground.GetComponent<MeshCollider>();
+        }
+        else {
+            groundMeshFilter.mesh = CreateMeshFromVectors(_chaparonePoints, _roomRange);
+            MeshCollider collider = _ground.GetComponent<MeshCollider>();
+        }
+        collider.sharedMesh = groundMeshFilter.mesh;
+    }
+
+    /*
+     * Create the walls
+     * Walls are slightly smaller than a bounding box of the chaparone area
+     * We will in the area outside the chaparone area, but inside walls
+     * with debris, furniture, ect
+     */
+    private void CreateWalls()
+    {
+
+    }
+
+    // Create the Objects that fill in the space outside the chaparone
+    private void FillOutsideChaparone()
+    {
+
+    }
+
+    private void PopulateRoom()
+    {
+        AddInteractiveObjects();
+        AddPeople();
+        AddGhosts();
+        AddItems();
+        AddEvents();
+    }
+
+    // Add the interactive objects
+    private void AddInteractiveObjects()
+    {
+
+    }
+
+    // Add the People
+    private void AddPeople()
+    {
+
+    }
+
+    // Add the Ghosts
+    private void AddGhosts()
+    {
+
+    }
+
+    // Add the Items
+    private void AddItems()
+    {
+
+    }
+
+    // Add the Events
+    private void AddEvents()
+    {
+
+    }
+
+    private Mesh CreateMeshFromVectors(List<Vector3> points, RoomRange roomRange)
     {
         List<int> tris = new List<int>(); // Every 3 ints represents a triangle in the ploygon
         List<Vector2> uvs = new List<Vector2>(); // Vertex position in 0-1 UV space (The material)
         
         int half = points.Count / 2;
         float realHalf = points.Count / 2f;
-        float minX = points[0].x;
-        float maxX = points[0].x;
-        float minZ = points[0].z;
-        float maxZ = points[0].z;
+        
         for (int i = 1; i < half; i++) {
             tris.Add(i);
             tris.Add(i + 1);
@@ -106,14 +180,7 @@ public class Room : MonoBehaviour
             tris.Add(points.Count - i);
             int value = i==1?0:(points.Count - i) + 1;
             tris.Add(value);
-            if (minX > points[i].x) minX = points[i].x;
-            if (maxX < points[i].x) maxX = points[i].x;
-            if (minX > points[points.Count - i].x) minX = points[points.Count - i].x;
-            if (maxX < points[points.Count - i].x) maxX = points[points.Count - i].x;
-            if (minZ > points[i].z) minZ = points[i].z;
-            if (maxZ < points[i].z) maxZ = points[i].z;
-            if (minZ > points[points.Count - i].z) minZ = points[points.Count - i].z;
-            if (maxZ < points[points.Count - i].z) maxZ = points[points.Count - i].z;
+           
         }
         if (Math.Floor(realHalf) != Math.Ceiling(realHalf))
         {
@@ -121,17 +188,11 @@ public class Room : MonoBehaviour
             tris.Add(half);
             tris.Add(half + 1);
             tris.Add(half - 1);
-            if (minX > points[half].x) minX = points[half].x;
-            if (maxX < points[half].x) maxX = points[half].x;
-            if (minZ > points[half].z) minZ = points[half].z;
-            if (maxZ < points[half].z) maxZ = points[half].z;
         }
-        float xRange = maxX - minX;
-        float zRange = maxZ - minZ;
         for (int i = 0; i < points.Count; i++)
         {
-            float xUv = (points[i].x - minX) / xRange;
-            float zUv = (points[i].z - minX) / zRange;
+            float xUv = (points[i].x - roomRange.minX) / roomRange.XRange();
+            float zUv = (points[i].z - roomRange.minX) / roomRange.ZRange();
             uvs.Add(new Vector2(xUv, zUv));
         }
 
@@ -141,5 +202,50 @@ public class Room : MonoBehaviour
         mesh.triangles = tris.ToArray();
         mesh.RecalculateNormals();
         return mesh;
+    }
+
+    private void SetRanges(float x, ref float minX, ref float maxX, float z, ref float minZ, ref float maxZ)
+    {
+        if (minX > x) minX = x;
+        if (maxX < x) maxX = x;
+        if (minZ > z) minZ = z;
+        if (maxZ < z) maxZ = z;
+    }
+}
+
+public enum RoomType
+{
+    Foyer,
+    Basement,
+    Ground,
+    Upper
+}
+
+/*
+ * The Room Range Details
+ */
+public class RoomRange
+{
+    public float minX;
+    public float maxX;
+    public float minZ;
+    public float maxZ;
+
+    public RoomRange(float x, float z)
+    {
+        minX = x;
+        maxX = x;
+        minZ = z;
+        maxZ = z;
+    }
+
+    public float XRange()
+    {
+        return maxX - minX;
+    }
+
+    public float ZRange()
+    {
+        return maxZ - minZ;
     }
 }
