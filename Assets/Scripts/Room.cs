@@ -94,15 +94,15 @@ public class Room : MonoBehaviour
     private void PopulateGround()
     {
         MeshFilter groundMeshFilter = _ground.AddComponent<MeshFilter>();
+        MeshCollider collider = _ground.GetComponent<MeshCollider>();
         if (_missingFloor)
         {
             // TODO: Change to only render floor that exists
             groundMeshFilter.mesh = CreateMeshFromVectors(_chaparonePoints, _roomRange);
-            MeshCollider collider = _ground.GetComponent<MeshCollider>();
         }
         else {
             groundMeshFilter.mesh = CreateMeshFromVectors(_chaparonePoints, _roomRange);
-            MeshCollider collider = _ground.GetComponent<MeshCollider>();
+            
         }
         collider.sharedMesh = groundMeshFilter.mesh;
     }
