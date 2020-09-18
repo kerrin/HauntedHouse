@@ -8,8 +8,10 @@ public class Ceiling : MonoBehaviour
     private Material[] _ceilingMaterials = null;
     [SerializeField]
     private float _ceilingHeight = 2.5f;
+    // All the sub classes
     private Ground _ground;
     private Wall _wall;
+
     // Start is called before the first frame update
     void Start()
     {

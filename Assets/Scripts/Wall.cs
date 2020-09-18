@@ -12,6 +12,7 @@ public class Wall : MonoBehaviour
     private float _shrinkWall = 0.9f; // 90%
     private List<GameObject> _walls = new List<GameObject>();
     private List<LineRange>[] _wallEmpty = new List<LineRange>[4];
+    // All the sub classes
     private Ground _ground;
     private Ceiling _ceiling;
 
