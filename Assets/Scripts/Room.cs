@@ -8,7 +8,7 @@ public class Room : MonoBehaviour
 {
     private float _adjustment = 0.6f; // Wall x and z are off by this when creating compared to free wall space list!
     [SerializeField]
-    private Material[] _groundMaterials = null;
+    private Material[] _ceilingMaterials = null;
     [SerializeField]
     private Material[] _wallMaterials = null;
     [SerializeField]
@@ -19,18 +19,11 @@ public class Room : MonoBehaviour
     // Every other room is displayed reversed, due to switchback on changing rooms
     private bool _reversed = false;
     [SerializeField]
-    // If there are parts of the floor missing, we render the floor differently
-    private bool _missingFloor = false;
-    [SerializeField]
     private bool[] _isOutsideWalls = { false, false, false, false };
     [SerializeField]
     private float[] _windowChance = { 0.9f, 0.9f, 0.9f, 0.9f };
     private int _windowCount = 0;
-    [SerializeField]
-    private float _chaperoneAngleOffset = 90f;
-    private HmdQuad_t[] _chaperoneQuads = null;
-    private PlaneRange _groundRange = null;
-    List<Vector3> _chaparonePoints = new List<Vector3>();
+    private Floor _floor;
     private float _ceilingHeight = 2.5f;
     private float _shrinkWall = 0.9f; // 90%
     private List<GameObject> _walls = new List<GameObject>();
@@ -38,7 +31,8 @@ public class Room : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        if(!CreateRoom())
+        _floor = GetComponent<Floor>();
+        if (!CreateRoom())
         {
             Debug.LogError("Cannot initialise room");
             return;
@@ -53,85 +47,16 @@ public class Room : MonoBehaviour
     }
 
     /*
-     * Convert the Head Mounted Device Quad to a Vector3
-     */
-    private Vector3 GetPoint(HmdQuad_t quad)
-    {
-        Vector3 temp = transform.localScale;
-        temp.x = quad.vCorners0.v2;
-        temp.y = quad.vCorners0.v1;
-        temp.z = quad.vCorners0.v0;
-        Quaternion q = Quaternion.AngleAxis(_chaperoneAngleOffset, new Vector3(0, 1, 0));
-
-        temp = q * temp;
-
-        return temp;
-    }
-
-    /*
      * Create a room and everything in it.
      */
     private bool CreateRoom()
     {
-        CVRChaperoneSetup chaperone = OpenVR.ChaperoneSetup;
-        bool success = (chaperone != null) && chaperone.GetLiveCollisionBoundsInfo(out _chaperoneQuads);
-        if (!success)
-        {
-            Debug.LogError("Failed to get Calibrated Chaperone bounds!  Make sure you have tracking first, and that your space is calibrated.");
-            return false;
-        }
-        
-        if (_chaperoneQuads.Length > 0)
-        {
-            Vector3 point = GetPoint(_chaperoneQuads[0]);
-            _groundRange = new PlaneRange(point.x, 0, point.z);
-            _chaparonePoints.Add(point);
-            for (int i = 1; i < _chaperoneQuads.Length; i++)
-            {
-                point = GetPoint(_chaperoneQuads[i]);
-                _chaparonePoints.Add(point);
-                SetRanges(point.x, ref _groundRange.minX, ref _groundRange.maxX, point.z, ref _groundRange.minZ, ref _groundRange.maxZ);
-            }
-            
-            PopulateGround();
-            AddWalls();
-            AddCeiling();
-            AddDoors();
-            FillOutsideChaparone();
-            AddWindows();
-        }
-        else
-        {
-            Debug.LogError("No Bounding points");
-            return false;
-        }
-        return success;
-    }
-
-    // Create the ground
-    private void PopulateGround()
-    {
-        GameObject ground = new GameObject();
-        ground.transform.parent = transform;
-        int groundMaterialIndex = Random.Range(0, _groundMaterials.Length);
-        MeshRenderer groundRendered = ground.AddComponent<MeshRenderer>();
-        groundRendered.material = _groundMaterials[groundMaterialIndex];
-        ground.transform.name = "Ground" + groundRendered.material.name;
-        ground.tag = "Floor";
-        MeshCollider groundCollider = ground.AddComponent<MeshCollider>();
-        MeshFilter groundMeshFilter = ground.AddComponent<MeshFilter>();
-        PlaneRange range = new PlaneRange(0, 1f, 0, 0, 0, 1f);
-        if (_missingFloor)
-        {
-            // TODO: Change to only render floor that exists
-            groundMeshFilter.mesh = CreateMeshFromVectors(_chaparonePoints, range);
-        }
-        else {
-            _chaparonePoints.Reverse();
-            groundMeshFilter.mesh = CreateMeshFromVectors(_chaparonePoints, range);
-            
-        }
-        groundCollider.sharedMesh = groundMeshFilter.mesh;
+        AddWalls();
+        AddCeiling();
+        AddDoors();
+        FillOutsideChaparone();
+        AddWindows();
+        return true;
     }
 
     /*
@@ -142,52 +67,55 @@ public class Room : MonoBehaviour
      */
     private void AddWalls()
     {
+
         GameObject[] walls = new GameObject[4];
         List<Vector3>[] wallPoints = new List<Vector3>[4];
         PlaneRange[] wallRanges = new PlaneRange[4];
+        Chaparone chaparone = _floor.GetChaparone();
+        PlaneRange groundRange = chaparone.GetGroundRange();
         _wallEmpty[0] = new List<LineRange>();
-        _wallEmpty[0].Add(new LineRange(_adjustment + _groundRange.minX * _shrinkWall, _adjustment + _groundRange.maxX * _shrinkWall));
+        _wallEmpty[0].Add(new LineRange(_adjustment + groundRange.minX * _shrinkWall, _adjustment + groundRange.maxX * _shrinkWall));
         wallPoints[0] = new List<Vector3>();
-        wallPoints[0].Add(new Vector3(_groundRange.minX * _shrinkWall, 0, _groundRange.minZ * _shrinkWall));
-        wallPoints[0].Add(new Vector3(_groundRange.minX * _shrinkWall, _ceilingHeight, _groundRange.minZ * _shrinkWall));
-        wallPoints[0].Add(new Vector3(_groundRange.maxX * _shrinkWall, _ceilingHeight, _groundRange.minZ * _shrinkWall));
-        wallPoints[0].Add(new Vector3(_groundRange.maxX * _shrinkWall, 0, _groundRange.minZ * _shrinkWall));
+        wallPoints[0].Add(new Vector3(groundRange.minX * _shrinkWall, 0, groundRange.minZ * _shrinkWall));
+        wallPoints[0].Add(new Vector3(groundRange.minX * _shrinkWall, _ceilingHeight, groundRange.minZ * _shrinkWall));
+        wallPoints[0].Add(new Vector3(groundRange.maxX * _shrinkWall, _ceilingHeight, groundRange.minZ * _shrinkWall));
+        wallPoints[0].Add(new Vector3(groundRange.maxX * _shrinkWall, 0, groundRange.minZ * _shrinkWall));
         wallRanges[0] = new PlaneRange(
                 0, 1,
                 0, 1,
                 0, 0
             );
         _wallEmpty[1] = new List<LineRange>();
-        _wallEmpty[1].Add(new LineRange(_adjustment + _groundRange.minZ * _shrinkWall, _adjustment + _groundRange.maxZ * _shrinkWall));
+        _wallEmpty[1].Add(new LineRange(_adjustment + groundRange.minZ * _shrinkWall, _adjustment + groundRange.maxZ * _shrinkWall));
         wallPoints[1] = new List<Vector3>();
-        wallPoints[1].Add(new Vector3(_groundRange.maxX * _shrinkWall, 0, _groundRange.minZ * _shrinkWall));
-        wallPoints[1].Add(new Vector3(_groundRange.maxX * _shrinkWall, _ceilingHeight, _groundRange.minZ * _shrinkWall));
-        wallPoints[1].Add(new Vector3(_groundRange.maxX * _shrinkWall, _ceilingHeight, _groundRange.maxZ * _shrinkWall));
-        wallPoints[1].Add(new Vector3(_groundRange.maxX * _shrinkWall, 0, _groundRange.maxZ * _shrinkWall));
+        wallPoints[1].Add(new Vector3(groundRange.maxX * _shrinkWall, 0, groundRange.minZ * _shrinkWall));
+        wallPoints[1].Add(new Vector3(groundRange.maxX * _shrinkWall, _ceilingHeight, groundRange.minZ * _shrinkWall));
+        wallPoints[1].Add(new Vector3(groundRange.maxX * _shrinkWall, _ceilingHeight, groundRange.maxZ * _shrinkWall));
+        wallPoints[1].Add(new Vector3(groundRange.maxX * _shrinkWall, 0, groundRange.maxZ * _shrinkWall));
         wallRanges[1] = new PlaneRange(
                 0, 0,
                 0, 1,
                 0, 1
             );
         _wallEmpty[2] = new List<LineRange>();
-        _wallEmpty[2].Add(new LineRange(_adjustment + _groundRange.minX * _shrinkWall, _adjustment + _groundRange.maxX * _shrinkWall));
+        _wallEmpty[2].Add(new LineRange(_adjustment + groundRange.minX * _shrinkWall, _adjustment + groundRange.maxX * _shrinkWall));
         wallPoints[2] = new List<Vector3>();
-        wallPoints[2].Add(new Vector3(_groundRange.maxX * _shrinkWall, 0, _groundRange.maxZ * _shrinkWall));
-        wallPoints[2].Add(new Vector3(_groundRange.maxX * _shrinkWall, _ceilingHeight, _groundRange.maxZ * _shrinkWall));
-        wallPoints[2].Add(new Vector3(_groundRange.minX * _shrinkWall, _ceilingHeight, _groundRange.maxZ * _shrinkWall));
-        wallPoints[2].Add(new Vector3(_groundRange.minX * _shrinkWall, 0, _groundRange.maxZ * _shrinkWall));
+        wallPoints[2].Add(new Vector3(groundRange.maxX * _shrinkWall, 0, groundRange.maxZ * _shrinkWall));
+        wallPoints[2].Add(new Vector3(groundRange.maxX * _shrinkWall, _ceilingHeight, groundRange.maxZ * _shrinkWall));
+        wallPoints[2].Add(new Vector3(groundRange.minX * _shrinkWall, _ceilingHeight, groundRange.maxZ * _shrinkWall));
+        wallPoints[2].Add(new Vector3(groundRange.minX * _shrinkWall, 0, groundRange.maxZ * _shrinkWall));
         wallRanges[2] = new PlaneRange(
                 0, 1,
                 0, 1,
                 0, 0
             );
         _wallEmpty[3] = new List<LineRange>();
-        _wallEmpty[3].Add(new LineRange(_adjustment + _groundRange.minZ * _shrinkWall, _adjustment + _groundRange.maxZ * _shrinkWall));
+        _wallEmpty[3].Add(new LineRange(_adjustment + groundRange.minZ * _shrinkWall, _adjustment + groundRange.maxZ * _shrinkWall));
         wallPoints[3] = new List<Vector3>();
-        wallPoints[3].Add(new Vector3(_groundRange.minX * _shrinkWall, 0, _groundRange.maxZ * _shrinkWall));
-        wallPoints[3].Add(new Vector3(_groundRange.minX * _shrinkWall, _ceilingHeight, _groundRange.maxZ * _shrinkWall));
-        wallPoints[3].Add(new Vector3(_groundRange.minX * _shrinkWall, _ceilingHeight, _groundRange.minZ * _shrinkWall));
-        wallPoints[3].Add(new Vector3(_groundRange.minX * _shrinkWall, 0, _groundRange.minZ * _shrinkWall));
+        wallPoints[3].Add(new Vector3(groundRange.minX * _shrinkWall, 0, groundRange.maxZ * _shrinkWall));
+        wallPoints[3].Add(new Vector3(groundRange.minX * _shrinkWall, _ceilingHeight, groundRange.maxZ * _shrinkWall));
+        wallPoints[3].Add(new Vector3(groundRange.minX * _shrinkWall, _ceilingHeight, groundRange.minZ * _shrinkWall));
+        wallPoints[3].Add(new Vector3(groundRange.minX * _shrinkWall, 0, groundRange.minZ * _shrinkWall));
         int wallMaterialIndex = Random.Range(0, _wallMaterials.Length);
         wallRanges[3] = new PlaneRange(
                 0, 0,
@@ -204,7 +132,7 @@ public class Room : MonoBehaviour
             wall.tag = "Wall";
             MeshCollider wallCollider = wall.AddComponent<MeshCollider>();
             MeshFilter wallMeshFilter = wall.AddComponent<MeshFilter>();
-            wallMeshFilter.mesh = CreateMeshFromVectors(wallPoints[i], wallRanges[i]);
+            wallMeshFilter.mesh = MeshTools.CreateMeshFromVectors(wallPoints[i], wallRanges[i]);
             wallCollider.sharedMesh = wallMeshFilter.mesh;
             _walls.Add(wall);
         }
@@ -217,24 +145,26 @@ public class Room : MonoBehaviour
     {
         GameObject ceiling = new GameObject();
         ceiling.transform.parent = transform;
-        int ceilingMaterialIndex = Random.Range(0, _groundMaterials.Length);
+        int ceilingMaterialIndex = Random.Range(0, _ceilingMaterials.Length);
         MeshRenderer ceilingRendered = ceiling.AddComponent<MeshRenderer>();
-        ceilingRendered.material = _groundMaterials[ceilingMaterialIndex];
+        ceilingRendered.material = _ceilingMaterials[ceilingMaterialIndex];
         ceiling.transform.name = "Ceiling" + ceilingRendered.material.name;
         ceiling.tag = "Floor";
         MeshCollider ceilingCollider = ceiling.AddComponent<MeshCollider>();
         MeshFilter ceilingMeshFilter = ceiling.AddComponent<MeshFilter>();
         List<Vector3> ceilingPoints = new List<Vector3>();
-        ceilingPoints.Add(new Vector3(_groundRange.maxX * _shrinkWall, _ceilingHeight, _groundRange.minZ * _shrinkWall));
-        ceilingPoints.Add(new Vector3(_groundRange.minX * _shrinkWall, _ceilingHeight, _groundRange.minZ * _shrinkWall));
-        ceilingPoints.Add(new Vector3(_groundRange.minX * _shrinkWall, _ceilingHeight, _groundRange.maxZ * _shrinkWall));
-        ceilingPoints.Add(new Vector3(_groundRange.maxX * _shrinkWall, _ceilingHeight, _groundRange.maxZ * _shrinkWall));
+        Chaparone chaparone = _floor.GetChaparone();
+        PlaneRange groundRange = chaparone.GetGroundRange();
+        ceilingPoints.Add(new Vector3(groundRange.maxX * _shrinkWall, _ceilingHeight, groundRange.minZ * _shrinkWall));
+        ceilingPoints.Add(new Vector3(groundRange.minX * _shrinkWall, _ceilingHeight, groundRange.minZ * _shrinkWall));
+        ceilingPoints.Add(new Vector3(groundRange.minX * _shrinkWall, _ceilingHeight, groundRange.maxZ * _shrinkWall));
+        ceilingPoints.Add(new Vector3(groundRange.maxX * _shrinkWall, _ceilingHeight, groundRange.maxZ * _shrinkWall));
         PlaneRange ceilingRange = new PlaneRange(
                 0, 1,
                 0, 0,
                 0, 1
             );
-        ceilingMeshFilter.mesh = CreateMeshFromVectors(ceilingPoints, ceilingRange);
+        ceilingMeshFilter.mesh = MeshTools.CreateMeshFromVectors(ceilingPoints, ceilingRange);
 
         ceilingCollider.sharedMesh = ceilingMeshFilter.mesh;
     }
@@ -262,6 +192,8 @@ public class Room : MonoBehaviour
         Bounds bounds = windowPrefab.GetComponent<MeshRenderer>().bounds;
         float windowWidth = bounds.max.x - bounds.min.x;
         Debug.Log("Window Size: " + windowWidth);
+        Chaparone chaparone = _floor.GetChaparone();
+        PlaneRange groundRange = chaparone.GetGroundRange();
         foreach (bool isOutsideWall in _isOutsideWalls)
         {
             if (isOutsideWall && Random.Range(0f, 1f) < _windowChance[wallIndex])
@@ -279,24 +211,24 @@ public class Room : MonoBehaviour
                         {
                             case 0:
                                 windowAtX = Random.Range(freeWallSection.min, freeWallSection.max - windowWidth);
-                                windowAtZ = (_groundRange.minZ * _shrinkWall) + 0.05f;
+                                windowAtZ = (groundRange.minZ * _shrinkWall) + 0.05f;
                                 usedWall = new LineRange(windowAtX, windowAtX + windowWidth);
                                 Debug.Log("WindowX " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + windowAtX);
                                 break;
                             case 1:
-                                windowAtX = (_groundRange.maxX * _shrinkWall) - 0f;
+                                windowAtX = (groundRange.maxX * _shrinkWall) - 0f;
                                 windowAtZ = Random.Range(freeWallSection.min, freeWallSection.max - windowWidth);
                                 usedWall = new LineRange(windowAtZ, windowAtZ + windowWidth);
                                 Debug.Log("WindowZ " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + windowAtZ);
                                 break;
                             case 2:
                                 windowAtX = Random.Range(freeWallSection.min, freeWallSection.max - windowWidth);
-                                windowAtZ = (_groundRange.maxZ * _shrinkWall) - 0.05f;
+                                windowAtZ = (groundRange.maxZ * _shrinkWall) - 0.05f;
                                 usedWall = new LineRange(windowAtX, windowAtX + windowWidth);
                                 Debug.Log("WindowX " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + windowAtX);
                                 break;
                             default:
-                                windowAtX = (_groundRange.minX * _shrinkWall) + 0f;
+                                windowAtX = (groundRange.minX * _shrinkWall) + 0f;
                                 windowAtZ = Random.Range(freeWallSection.min, freeWallSection.max - windowWidth);
                                 usedWall = new LineRange(windowAtZ, windowAtZ + windowWidth);
                                 Debug.Log("WindowZ " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + windowAtZ);
@@ -438,66 +370,6 @@ public class Room : MonoBehaviour
     }
 
     /*
-     * Creates a Mesh plane from the points
-     * The plane range allows the texture mapping to be aplied.
-     */
-    private Mesh CreateMeshFromVectors(List<Vector3> points, PlaneRange planeRange)
-    {
-        List<int> tris = new List<int>(); // Every 3 ints represents a triangle in the ploygon
-        List<Vector2> uvs = new List<Vector2>(); // Vertex position in 0-1 UV space (The material)
-
-        int half = points.Count / 2;
-        float realHalf = points.Count / 2f;
-
-        for (int i = 1; i < half; i++)
-        {
-            tris.Add(i);
-            tris.Add(points.Count - i);
-            tris.Add(i + 1);
-
-            tris.Add(i);
-            int value = i == 1 ? 0 : (points.Count - i) + 1;
-            tris.Add(value);
-            tris.Add(points.Count - i);
-
-        }
-        if (Mathf.Floor(realHalf) != Mathf.Ceil(realHalf))
-        {
-            Debug.Log("Odd number of points " + points.Count + "(" + realHalf + ")");
-            tris.Add(half);
-            tris.Add(half + 1);
-            tris.Add(half - 1);
-        }
-        for (int i = 0; i < points.Count; i++)
-        {
-            float[] uvRange = new float[2];
-            int index = 0;
-            if(planeRange.XRange() > 0) uvRange[index++] = (points[i].x - planeRange.minX) / planeRange.XRange();
-            if (index < 1 || (planeRange.ZRange() > 0)) uvRange[index++] = (points[i].z - planeRange.minX) / planeRange.ZRange();
-            if (index < 2) uvRange[index++] = (points[i].y - planeRange.minY) / planeRange.YRange();
-            uvs.Add(new Vector2(uvRange[0], uvRange[1]));
-        }
-
-        Mesh mesh = new Mesh();
-        mesh.vertices = points.ToArray();
-        mesh.uv = uvs.ToArray();
-        mesh.triangles = tris.ToArray();
-        mesh.RecalculateNormals();
-        return mesh;
-    }
-
-    /*
-     * Adjust the min and max values based on the new values
-     */
-    private void SetRanges(float x, ref float minX, ref float maxX, float z, ref float minZ, ref float maxZ)
-    {
-        if (minX > x) minX = x;
-        if (maxX < x) maxX = x;
-        if (minZ > z) minZ = z;
-        if (maxZ < z) maxZ = z;
-    }
-
-    /*
      * What degree rotation to apply to the wall based on it's index
      */
     private float GetWallRotate(int wallIndex)
@@ -550,78 +422,4 @@ public enum RoomType
     Basement,
     Ground,
     Upper
-}
-
-/*
- * The Plane Range Details
- * The min and max values in all three dimensions
- */
-public class PlaneRange
-{
-    public float minX;
-    public float maxX;
-    public float minY;
-    public float maxY;
-    public float minZ;
-    public float maxZ;
-
-    public PlaneRange(float x, float y, float z)
-    {
-        minX = x;
-        maxX = x;
-        minY = y;
-        maxY = y;
-        minZ = z;
-        maxZ = z;
-    }
-
-    public PlaneRange(float xMin, float xMax, float yMin, float yMax, float zMin, float zMax)
-    {
-        this.minX = xMin;
-        this.maxX = xMax;
-        this.minY = yMin;
-        this.maxY = yMax;
-        this.minZ = zMin;
-        this.maxZ = zMax;
-    }
-
-    public float XRange()
-    {
-        return maxX - minX;
-    }
-
-    public float YRange()
-    {
-        return maxY - minY;
-    }
-
-    public float ZRange()
-    {
-        return maxZ - minZ;
-    }
-}
-
-/*
- * The min and max values in a single dimension
- */
-public class LineRange
-{
-    public float min;
-    public float max;
-
-    public LineRange(float inMin, float inMax)
-    {
-        this.min = inMin;
-        this.max = inMax;
-    }
-
-    public float Range()
-    {
-        return max - min;
-    }
-    
-    override public string ToString()
-    {
-        return "LineRange:" + min + " to " + max;
-    }
 }
