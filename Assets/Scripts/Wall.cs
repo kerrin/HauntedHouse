@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Valve.VR;
 
 public class Wall : MonoBehaviour
 {
@@ -11,7 +12,10 @@ public class Wall : MonoBehaviour
     private bool[] _isOutsideWalls = { false, false, false, false };
     private float _shrinkWall = 0.9f; // 90%
     private List<GameObject> _walls = new List<GameObject>();
+    // Track free sections of wall
     private List<LineRange>[] _wallEmpty = new List<LineRange>[4];
+    // Track areas of the wall that are inside the chaparone area
+    private List<LineRange>[] _wallInChaparoneArea = new List<LineRange>[4];
     // All the sub classes
     private Ground _ground;
     private Ceiling _ceiling;
@@ -19,11 +23,15 @@ public class Wall : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        Debug.Log("Wall");
         _ground = GameObject.Find("Ground").GetComponent<Ground>();
         if (!_ground) Debug.LogError("No Ground Script in Wall");
         _ceiling = GameObject.Find("Ceiling").GetComponent<Ceiling>();
         if (!_ceiling) Debug.LogError("No Ceiling in Wall");
+    }
+
+    public void SetOutsideWall(int wallIndex, bool isOutsideWall)
+    {
+        _isOutsideWalls[wallIndex] = isOutsideWall;
     }
 
     /*
@@ -51,6 +59,14 @@ public class Wall : MonoBehaviour
     }
 
     /*
+     * Get the list of empty sections of the wall
+     */
+    public List<LineRange> GetAccessibleSections(int wallIndex)
+    {
+        return _wallInChaparoneArea[wallIndex];
+    }
+
+    /*
      * Create the walls
      * Walls are slightly smaller than a bounding box of the chaparone area
      * We will in the area outside the chaparone area, but inside walls
@@ -75,6 +91,9 @@ public class Wall : MonoBehaviour
                 0, 1,
                 0, 0
             );
+
+        _wallEmpty[1] = new List<LineRange>();
+        _wallEmpty[1].Add(new LineRange(_adjustment + groundRangeZ.min * _shrinkWall, _adjustment + groundRangeZ.max * _shrinkWall));
         _wallEmpty[1] = new List<LineRange>();
         _wallEmpty[1].Add(new LineRange(_adjustment + groundRangeZ.min * _shrinkWall, _adjustment + groundRangeZ.max * _shrinkWall));
         wallPoints[1] = new List<Vector3>();
@@ -112,19 +131,20 @@ public class Wall : MonoBehaviour
                 0, 1,
                 0, 1
             );
-        for (int i = 0; i < 4; i++)
+        for (int wallIndex = 0; wallIndex < 4; wallIndex++)
         {
             GameObject wall = new GameObject();
             wall.transform.parent = transform;
             MeshRenderer wallRendered = wall.AddComponent<MeshRenderer>();
             wallRendered.material = _wallMaterials[wallMaterialIndex];
-            wall.transform.name = "Wall" + i + wallRendered.material.name;
+            wall.transform.name = "Wall" + wallIndex + wallRendered.material.name;
             wall.tag = "Wall";
             MeshCollider wallCollider = wall.AddComponent<MeshCollider>();
             MeshFilter wallMeshFilter = wall.AddComponent<MeshFilter>();
-            wallMeshFilter.mesh = MeshTools.CreateMeshFromVectors(wallPoints[i], wallRanges[i]);
+            wallMeshFilter.mesh = MeshTools.CreateMeshFromVectors(wallPoints[wallIndex], wallRanges[wallIndex]);
             wallCollider.sharedMesh = wallMeshFilter.mesh;
             _walls.Add(wall);
+            CalculateAccessibleWall(wallIndex);
         }
     }
 
@@ -135,9 +155,9 @@ public class Wall : MonoBehaviour
     {
         switch (wallIndex)
         {
-            case 0: return 180f;
+            case 0: return 0f;
             case 1: return 270f;
-            case 2: return 0f;
+            case 2: return 180f;
             case 3: return 90f;
             default: return 0f;
         }
@@ -148,15 +168,15 @@ public class Wall : MonoBehaviour
      */
     public void AddWallUsage(int wallIndex, LineRange usedWall)
     {
-        int index = 0;
-        while (index < _wallEmpty[wallIndex].Count)
+        int sectionIndex = 0;
+        while (sectionIndex < _wallEmpty[wallIndex].Count)
         {
-            LineRange freeWallSection = _wallEmpty[wallIndex][index];
+            LineRange freeWallSection = _wallEmpty[wallIndex][sectionIndex];
             if ((freeWallSection.min < usedWall.min && freeWallSection.max > usedWall.min) ||
                 (freeWallSection.min < usedWall.max && freeWallSection.max > usedWall.max))
             {
                 LineRange newFreeSection = new LineRange(usedWall.max, freeWallSection.max);
-                if (index + 1 == _wallEmpty[wallIndex].Count)
+                if (sectionIndex + 1 == _wallEmpty[wallIndex].Count)
                 {
                     // Was last item, so add at end of list
                     _wallEmpty[wallIndex].Add(newFreeSection);
@@ -164,14 +184,63 @@ public class Wall : MonoBehaviour
                 else
                 {
                     // In middle of list so insert in correct place
-                    _wallEmpty[wallIndex].Insert(index + 1, newFreeSection);
+                    _wallEmpty[wallIndex].Insert(sectionIndex + 1, newFreeSection);
                 }
 
                 newFreeSection = new LineRange(freeWallSection.min, usedWall.min);
-                _wallEmpty[wallIndex][index] = newFreeSection;
+                _wallEmpty[wallIndex][sectionIndex] = newFreeSection;
                 break;
             }
-            index++;
+            sectionIndex++;
         }
+    }
+
+    public Vector3 AddToWall(int wallIndex, LineRange freeWallSection, float thingWidth, float y)
+    {
+        LineRange groundRangeX = _ground.GetXRange();
+        LineRange groundRangeZ = _ground.GetZRange();
+        float thingAtX, thingAtZ;
+        LineRange usedWall;
+        switch (wallIndex)
+        {
+            case 0:
+                thingAtX = Random.Range(freeWallSection.min, freeWallSection.max - thingWidth);
+                thingAtZ = (groundRangeZ.min * GetWallShrink()) + 0f;
+                usedWall = new LineRange(thingAtX, thingAtX + thingWidth);
+                Debug.Log("ThingX " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + thingAtX);
+                break;
+            case 1:
+                thingAtX = (groundRangeX.max * GetWallShrink()) - 0f;
+                thingAtZ = Random.Range(freeWallSection.min, freeWallSection.max - thingWidth);
+                usedWall = new LineRange(thingAtZ, thingAtZ + thingWidth);
+                Debug.Log("ThingZ " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + thingAtZ);
+                break;
+            case 2:
+                thingAtX = Random.Range(freeWallSection.min, freeWallSection.max - thingWidth);
+                thingAtZ = (groundRangeZ.max * GetWallShrink()) - 0f;
+                usedWall = new LineRange(thingAtX, thingAtX + thingWidth);
+                Debug.Log("ThingX " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + thingAtX);
+                break;
+            default:
+                thingAtX = (groundRangeX.min * GetWallShrink()) + 0f;
+                thingAtZ = Random.Range(freeWallSection.min, freeWallSection.max - thingWidth);
+                usedWall = new LineRange(thingAtZ, thingAtZ + thingWidth);
+                Debug.Log("ThingZ " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + thingAtZ);
+                break;
+        }
+        AddWallUsage(wallIndex, usedWall);
+        return new Vector3(thingAtX, y, thingAtZ);
+    }
+
+    /*
+    * Calculate what pars fo the wall can be accessed, as they are inside the chaparone area
+    * This is called when _wallEmpty[wallIndex] is the entire wall
+    */
+    private void CalculateAccessibleWall(int wallIndex)
+    {
+        LineRange wallRange = _wallEmpty[wallIndex][0];
+        _wallInChaparoneArea[wallIndex] = new List<LineRange>();
+        // TODO: Check for intersections with the floor?
+        _wallInChaparoneArea[wallIndex].Add(wallRange); // For now just allow anywhere
     }
 }

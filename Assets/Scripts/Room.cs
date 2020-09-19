@@ -12,13 +12,15 @@ public class Room : MonoBehaviour
     [SerializeField]
     // Every other room is displayed reversed, due to switchback on changing rooms
     private bool _reversed = false;
-    
+    [SerializeField]
+    private float[] _outsideWallChance = { 0.2f, 0.5f, 0.5f, 0.9f };
     // All the sub classes
     private Ground _ground;
     private Wall _wall;
-    private Window _window;
     private Ceiling _ceiling;
-    
+    private Window _window;
+    private Door _door;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -30,7 +32,18 @@ public class Room : MonoBehaviour
         if (!_wall) Debug.LogError("No Wall in Room");
         _window = GameObject.Find("Windows").GetComponent<Window>();
         if (!_window) Debug.LogError("No Window in Room");
+        _door = GameObject.Find("Doors").GetComponent<Door>();
+        if (!_door) Debug.LogError("No Door in Room");
         _ground.AddGround();
+        for(int wallIndex = 0; wallIndex < _outsideWallChance.Length; wallIndex++) {
+            if (Random.Range(0, 1f) < _outsideWallChance[wallIndex])
+            {
+                _wall.SetOutsideWall(wallIndex, true);
+            } else
+            {
+                _wall.SetOutsideWall(wallIndex, false);
+            }
+        }
         _wall.AddWalls();
         _ceiling.AddCeiling(); ;
         if (!CreateRoom())
@@ -47,22 +60,13 @@ public class Room : MonoBehaviour
      */
     private bool CreateRoom()
     {
-        AddDoors();
+        // Doors most important, can't go outside chaparone area anyway
+        _door.AddDoors();
+        // Then the chaparone areas
         FillOutsideChaparone();
+        // Then the windows
         _window.AddWindows();
         return true;
-    }
-
-    // Create the Doors to get in and out
-    private void AddDoors()
-    {
-        foreach (bool isOutsideWall in _wall.GetIsOutsideWalls())
-        {
-            if (!isOutsideWall)
-            {
-                // Add a Door if we want
-            }
-        }
     }
 
     /*

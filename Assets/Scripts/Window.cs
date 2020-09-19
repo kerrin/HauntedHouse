@@ -54,44 +54,17 @@ public class Window : MonoBehaviour
                     if (freeWallSection.max - freeWallSection.min > windowWidth)
                     {
                         // Window fits
-                        float windowAtX, windowAtZ;
-                        LineRange usedWall;
-                        switch (wallIndex)
-                        {
-                            case 0:
-                                windowAtX = Random.Range(freeWallSection.min, freeWallSection.max - windowWidth);
-                                windowAtZ = (groundRangeZ.min * _wall.GetWallShrink()) + 0.05f;
-                                usedWall = new LineRange(windowAtX, windowAtX + windowWidth);
-                                Debug.Log("WindowX " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + windowAtX);
-                                break;
-                            case 1:
-                                windowAtX = (groundRangeX.max * _wall.GetWallShrink()) - 0f;
-                                windowAtZ = Random.Range(freeWallSection.min, freeWallSection.max - windowWidth);
-                                usedWall = new LineRange(windowAtZ, windowAtZ + windowWidth);
-                                Debug.Log("WindowZ " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + windowAtZ);
-                                break;
-                            case 2:
-                                windowAtX = Random.Range(freeWallSection.min, freeWallSection.max - windowWidth);
-                                windowAtZ = (groundRangeZ.max * _wall.GetWallShrink()) - 0.05f;
-                                usedWall = new LineRange(windowAtX, windowAtX + windowWidth);
-                                Debug.Log("WindowX " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + windowAtX);
-                                break;
-                            default:
-                                windowAtX = (groundRangeX.min * _wall.GetWallShrink()) + 0f;
-                                windowAtZ = Random.Range(freeWallSection.min, freeWallSection.max - windowWidth);
-                                usedWall = new LineRange(windowAtZ, windowAtZ + windowWidth);
-                                Debug.Log("WindowZ " + wallIndex + "(" + freeWallSection.min + " to " + freeWallSection.max + "): " + windowAtZ);
-                                break;
-                        }
+                        Vector3 windowAt = _wall.AddToWall(wallIndex, freeWallSection, windowWidth, (_ceiling.GetHeight() / 3) * 2);
+                        
                         GameObject window = Instantiate<GameObject>(windowPrefab);
                         window.transform.Rotate(_wall.GetWallRotate(wallIndex) * Vector3.up);
-                        window.transform.position = new Vector3(windowAtX, (_ceiling.GetHeight() / 3) * 2, windowAtZ);
-                        Debug.Log("Window " + wallIndex + "(" + windowAtX + "," + windowAtZ + "): " + window.transform.position);
+                        window.transform.position = windowAt;
+                        Debug.Log("Window " + wallIndex + "(" + windowAt.x + "," + windowAt.z + "): " + window.transform.position);
                         window.transform.parent = transform;
                         window.transform.name = "Window" + wallIndex + windowPrefab.name;
                         window.tag = "Decoration";
                         AddWindowLight(wallIndex, window);
-                        _wall.AddWallUsage(wallIndex, usedWall);
+                        
                         _windowCount++;
                         // Only one window per wall
                         break;

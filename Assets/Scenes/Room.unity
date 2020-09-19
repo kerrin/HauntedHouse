@@ -173,7 +173,7 @@ MonoBehaviour:
   - {fileID: 2100000, guid: b7d17d7ff03692447ae4881542a9e0ff, type: 2}
   - {fileID: 2100000, guid: 1d7c814e4c21d7047aa22e1b072ce902, type: 2}
   - {fileID: 2100000, guid: 54eed4428032db2419de90c9b5bb9f7c, type: 2}
-  _isOutsideWalls: 01010101
+  _isOutsideWalls: 00010001
 --- !u!1 &427947452
 GameObject:
   m_ObjectHideFlags: 0
@@ -285,41 +285,6 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: dc06161b6d97feb419f45f03b62e14b9, type: 3}
---- !u!21 &509024974
-Material:
-  serializedVersion: 6
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: Sprites/Default
-  m_Shader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
-  m_ShaderKeywords: 
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _AlphaTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Floats:
-    - PixelSnap: 0
-    - _EnableExternalAlpha: 0
-    m_Colors:
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _Flip: {r: 1, g: 1, b: 1, a: 1}
-    - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
-  m_BuildTextureStacks: []
 --- !u!850595691 &614458846
 LightingSettings:
   m_ObjectHideFlags: 0
@@ -432,7 +397,7 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 771ff4343fb89c5459585397e9739b36, type: 2}
   - {fileID: 2100000, guid: 54eed4428032db2419de90c9b5bb9f7c, type: 2}
   _missingFloor: 0
---- !u!43 &1463819427
+--- !u!43 &909241335
 Mesh:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -596,6 +561,52 @@ Mesh:
     offset: 0
     size: 0
     path: 
+--- !u!1 &1618291845
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1618291846}
+  - component: {fileID: 1618291847}
+  m_Layer: 0
+  m_Name: Doors
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1618291846
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1618291845}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 1869627972}
+  m_RootOrder: 4
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1618291847
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1618291845}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 863852ab9c0b82b41a571a7943f4a413, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _doorPrefabs:
+  - {fileID: 919132149155446097, guid: 3864f9fbf1baa8f499c191247241212a, type: 3}
+  _doorScale: {x: 0.4, y: 0.4, z: 0.6}
 --- !u!1 &1772673394
 GameObject:
   m_ObjectHideFlags: 0
@@ -644,6 +655,41 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 771ff4343fb89c5459585397e9739b36, type: 2}
   - {fileID: 2100000, guid: 54eed4428032db2419de90c9b5bb9f7c, type: 2}
   _ceilingHeight: 2.5
+--- !u!21 &1863595092
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Sprites/Default
+  m_Shader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _AlphaTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - PixelSnap: 0
+    - _EnableExternalAlpha: 0
+    m_Colors:
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Flip: {r: 1, g: 1, b: 1, a: 1}
+    - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
 --- !u!1 &1869627970
 GameObject:
   m_ObjectHideFlags: 0
@@ -679,6 +725,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _roomType: 0
   _reversed: 0
+  _outsideWallChance:
+  - 0.2
+  - 0.5
+  - 0.5
+  - 0.9
 --- !u!4 &1869627972
 Transform:
   m_ObjectHideFlags: 0
@@ -694,6 +745,7 @@ Transform:
   - {fileID: 1772673395}
   - {fileID: 108327712}
   - {fileID: 427947453}
+  - {fileID: 1618291846}
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -731,7 +783,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1869627970}
-  m_Mesh: {fileID: 1463819427}
+  m_Mesh: {fileID: 909241335}
 --- !u!23 &1869627975
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -751,7 +803,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 509024974}
+  - {fileID: 1863595092}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

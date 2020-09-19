@@ -15,7 +15,6 @@ public class Ceiling : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        Debug.Log("Ceiling");
         _ground = GameObject.Find("Ground").GetComponent<Ground>();
         if (!_ground) Debug.LogError("No Ground in Ceiling");
         _wall = GameObject.Find("Walls").GetComponent<Wall>();
